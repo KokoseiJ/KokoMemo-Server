@@ -233,7 +233,7 @@ def token_to_user(token):
     if payload.get("exp") <= time.time():
         return False, "Token is expired."
 
-    return True, User.query.filter_by(username=payload.get("username")).first()
+    return True, User.query.filter_by(id=payload.get("userid")).first()
 
 
 @app.route('/')
@@ -287,7 +287,7 @@ def get_token():
     payload = {
         "iat": issued,
         "exp": expire,
-        "username": user.username
+        "userid": user.id
     }
     jwt = jwt_encode(payload)
     return return_data(201, "Token issued successfully.", {"token": jwt})
