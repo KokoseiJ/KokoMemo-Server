@@ -1,0 +1,13 @@
+[Unit]
+Description=uWSGI instance serving MemoWeb service
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/your-app-directory/
+Environment="SECRET_KEY=your-secret-key"
+ExecStart=/usr/bin/uwsgi --ini memoweb.ini
+
+[Install]
+WantedBy=multi-user.target

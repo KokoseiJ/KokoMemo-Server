@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import base64
 
 
 PATH = os.path.dirname(__file__)
@@ -9,4 +10,4 @@ PATH = os.path.dirname(__file__)
 SQLALCHEMY_DATABASE_URI = f"sqlite:///{PATH}/data.db"
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-SECRET_KEY = os.environ.get('SECRET_KEY')
+SECRET_KEY = base64.b64decode(os.environ.get('SECRET_KEY'))
