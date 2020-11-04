@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
 
+from flask import request
+from flask import Blueprint
+
 import time
 import bcrypt
 from math import floor
 
-from flask import Blueprint
-from flask import request
-
-
 from app import db
-from app.module.base import return_data
 from app.module.hash import sha256
 from app.module.jwt import jwt_encode
-from app.module.vaild import check_login
+from app.module.util import return_data, check_login
 
 from models import User
 

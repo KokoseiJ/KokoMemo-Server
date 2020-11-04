@@ -2,8 +2,8 @@
 
 import json
 
-from app.module.b64 import b64encode, b64decode
 from app.module.hash import hmacsha256
+from app.module.b64 import b64encode, b64decode
 
 from config import SECRET_KEY
 

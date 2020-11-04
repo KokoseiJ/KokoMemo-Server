@@ -1,21 +1,18 @@
 # -*- coding: utf-8 -*-
 
+from flask import request
+from flask import Blueprint
+
 import os
 import re
 import time
 import secrets
 
-from flask import Blueprint
-from flask import request
-
-
 from app import db
-from app.module.base import return_data
-from app.module.token import token_to_user
-
-from models import Note
+from app.module.util import return_data, token_to_user
 
 from config import PATH
+from models import Note
 
 
 bp = Blueprint(
