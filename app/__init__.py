@@ -18,21 +18,16 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
-    from importlib import import_module
-    import_module("models")
+    import models
+    from app import views
 
-    import os
-    for m in os.listdir(os.path.join("app", "views")):
-        if not m.startswith("__") and m.endswith(".py"):
-            module = import_module(
-                name=f"app.views.{m.split('.py')[0]}"
+    for module in [views.__getattribute__(attr) for attr in dir(views)
+                   if not attr.startswith("_")]:
+        try:
+            app.register_blueprint(
+                blueprint=module.__getattribute__("bp")
             )
-
-            try:
-                app.register_blueprint(
-                    blueprint=module.__getattribute__("bp")
-                )
-            except AttributeError:
-                print(f"'{m.split('.py')[0]}' is not view point")
+        except AttributeError:
+            print(f"'{module.__name__}' is not a valid viewpoint.")
 
     return app
