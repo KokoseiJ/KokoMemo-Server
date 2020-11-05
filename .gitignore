@@ -177,6 +177,10 @@ GitHub.sublime-settings
 
 # End of https://github.com/github/gitignore/blob/master/Global/SublimeText.gitignore
 
+# uwsgi deployment files
+wsgi.py
+memoweb.ini
+
 data.db
 notes
 메모앱
