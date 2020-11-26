@@ -70,6 +70,7 @@ def token_to_user(token):
     :returns: (False, failure_message) If token is not valid.
               (True, User) If token is valid.
     """
+    retrived = time.time()
     try:
         payload = jwt_decode(token)
     except ValueError:
@@ -77,7 +78,12 @@ def token_to_user(token):
     if not payload:
         return False, "Token signature mismatch."
 
-    if payload.get("exp") <= time.time():
+    if payload.get("exp") <= retrived:
         return False, "Token is expired."
 
-    return True, User.query.filter_by(id=payload.get("userid")).first()
+    user = User.query.filter_by(id=payload.get("userid")).first()
+
+    if user.recent_token_issued_time != payload.get("iat"):
+        return False, "Token is expired."
+
+    return True, user
