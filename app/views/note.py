@@ -30,7 +30,7 @@ def get_note_list():
     token = auth.split(" ", 1)[1]
     is_valid, user = token_to_user(token)
     if not is_valid:
-        return return_data(401, user)
+        return return_data(403, "JWT signature mismatch")
 
     data = [note.__dict__ for note in user.notes]
     for dict in data:
@@ -41,12 +41,12 @@ def get_note_list():
 @bp.route('/', methods=['POST'])
 def upload_note():
     auth = request.headers.get("Authorization", str())
-    if not auth.strip().startswith("Bearer"):
+    if not auth.strip().startswith("Bearer "):
         return return_data(401, "Authorization not provided.")
     token = auth.split(" ", 1)[1]
     is_valid, user = token_to_user(token)
     if not is_valid:
-        return return_data(401, user)
+        return return_data(403, "JWT signature mismatch")
 
     title = request.form.get("title", "")
     body = request.form.get("body", "")
@@ -96,12 +96,12 @@ def upload_note():
 @bp.route("/<string:id>", methods=['GET'])
 def get_note(id):
     auth = request.headers.get("Authorization", str())
-    if not auth.strip().startswith("Bearer"):
+    if not auth.strip().startswith("Bearer "):
         return return_data(401, "Authorization not provided.")
     token = auth.split(" ", 1)[1]
     is_valid, user = token_to_user(token)
     if not is_valid:
-        return return_data(401, user)
+        return return_data(403, "JWT signature mismatch")
 
     if id not in [note.id for note in user.notes]:
         return return_data(404, "Note with given id doesn't exist.")
@@ -113,12 +113,12 @@ def get_note(id):
 @bp.route("/<string:id>", methods=['PUT'])
 def edit_note(id):
     auth = request.headers.get("Authorization", str())
-    if not auth.strip().startswith("Bearer"):
+    if not auth.strip().startswith("Bearer "):
         return return_data(401, "Authorization not provided.")
     token = auth.split(" ", 1)[1]
     is_valid, user = token_to_user(token)
     if not is_valid:
-        return return_data(401, user)
+        return return_data(403, "JWT signature mismatch")
 
     if id not in [note.id for note in user.notes]:
         return return_data(404, "Note with given id doesn't exist.")
