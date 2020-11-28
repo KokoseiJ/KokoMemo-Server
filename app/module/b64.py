@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import base64
+import binascii.Error
 
 
 def b64encode(data, urlsafe=True):
@@ -41,3 +42,11 @@ def b64decode(data, urlsafe=True):
         return base64.urlsafe_b64decode(data)
     else:
         return base64.b64decode(data)
+
+
+def check_b64(data, urlsafe=True):
+    try:
+        b64decode(data, urlsafe)
+    except binascii.Error:
+        return False
+    return True

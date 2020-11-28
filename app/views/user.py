@@ -53,28 +53,18 @@ def register():
     payload = {
         "iat": issued,
         "exp": expire,
-        "username": uesrname,
+        "username": username,
         "password": hashed_pw,
         "email": email,
         "nickname": nickname
     }
     jwt = jwt_encode(payload)
+    print(jwt)
 
-    return return_data(201, "Email has been sent to your account. "\
-                            "Please use the link provided in email to "\
+    return return_data(201, "Email has been sent to your account. "
+                            "Please use the link provided in email to "
                             "register your account.")
 
-    #user = User(
-    #    username=username,
-    #    password=hashed_pw,
-    #    email=email,
-    #    nickname=nickname
-    #)
-
-    #db.session.add(user)
-    #db.session.commit()
-
-    #return return_data(201, "Successfully registered!")
 
 @bp.route('/verify', methods=['POST'])
 def verify_register():
@@ -86,25 +76,25 @@ def verify_register():
     payload = jwt_decode(token)
     if not payload:
         return return_data(403, "JWT signature mismatch.")
-    username = payload(username, None)
-    password = payload(password, None)
-    email = payload(email, None)
-    nickname = payload(nickname, None)
+    username = payload("username", None)
+    password = payload("password", None)
+    email = payload("email", None)
+    nickname = payload("nickname", None)
 
     if None in [username, password, email, nickname]:
         return return_data(400, "Invalid token format.")
 
     user = User(
         username=username,
-        password=hashed_pw,
+        password=password,
         email=email,
         nickname=nickname
     )
-
     db.session.add(user)
     db.session.commit()
 
     return return_data(201, "Successfully registered!")
+
 
 @bp.route('/token', methods=['GET'])
 def get_token():
@@ -122,4 +112,8 @@ def get_token():
         "userid": user.id
     }
     jwt = jwt_encode(payload)
+
+    user.recent_token_issued_time = issued()
+    db.session.commit()
+
     return return_data(201, "Token issued successfully.", {"token": jwt})

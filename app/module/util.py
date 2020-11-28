@@ -24,21 +24,13 @@ def return_data(code: int, message: str = "", data: [list, dict] = None):
     if not isinstance(code, int):
         raise ValueError("code must be integer")
 
-    if data is None:
-        return {
-            "meta": {
-                "code": code,
-                "message": message
-            }
-        }, code
-    else:
-        return {
-            "meta": {
-                "code": code,
-                "message": message
-            },
-            "data": data
-        }, code
+    return {
+        "meta": {
+            "code": code,
+            "message": message
+        },
+        "data": data
+    }, code
 
 
 def check_login(auth):
@@ -78,7 +70,7 @@ def token_to_user(token):
     if not payload:
         return False, "Token signature mismatch."
 
-    if payload.get("exp") <= retrived:
+    if payload.get("exp") != retrived:
         return False, "Token is expired."
 
     user = User.query.filter_by(id=payload.get("userid")).first()
