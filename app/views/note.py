@@ -10,11 +10,10 @@ import time
 import secrets
 
 from app import db
-from app.module.b64 import check_b64, b64decode
+from app.module.b64 import check_b64
 from app.module.util import return_data, token_to_user
 
 from config import PATH
-from models import Note
 
 
 def get_list(path):
@@ -29,17 +28,19 @@ def get_list(path):
     '''
     filelist = []
     for file in os.scandir(path):
-        if file.name[0] == "_" or not check_b64(file.name[1:]):
+        if file.name[0] == "_" or not check_b64(file.name[1:]) or\
+                len(file.name) != 12:
             continue
         if file.is_file():
             with open(file.path) as f:
                 data = json.load(f)
-            data.pop("contents")
+            data['content'] = None
             filelist.append(data)
         else:
             with open(os.path.join(file.path, "_title")) as f:
                 title = f.read()
             filelist.append({
+                "id": file.name,
                 "title": title,
                 "type": "D",
                 "preview": None,
@@ -71,6 +72,7 @@ def get_note_list():
     return return_data(200, data=data)
 
 
+@bp.route('/', defaults={'note_path': ""}, methods=['POST'])
 @bp.route('/<path:note_path>', methods=['POST'])
 def upload_note(note_path):
     auth = request.headers.get("Authorization", str())
@@ -107,26 +109,12 @@ def upload_note(note_path):
     if _type in ["N", "F"] and not content:
         return return_data(400, "Content not provided.")
 
-    try:
-        user_path = os.path.join(PATH, "notes", str(user.id))
-        os.mkdir(user_path)
-    except FileExistsError:
-        if os.path.isfile(user_path):
-            return return_data(500, "Failed to create a user folder.\n"
-                                    "This is server-side error and "
-                                    "should not happen at all.\n"
-                                    "Please contact administartor for help.")
-    except PermissionError:
-        return return_data(500, "Failed to create a user folder.\n"
-                                "This is server-side error and "
-                                "should not happen at all.\n"
-                                "Please contact administartor for help.")
-
     while True:
         id = _type + secrets.token_urlsafe(8)
         if id not in id_list:
             break
 
+    user_path = os.path.join(PATH, "notes", str(user.id))
     if _type == "D":
         try:
             fpath = os.path.join(user_path, note_path, id)
@@ -136,7 +124,7 @@ def upload_note(note_path):
                                     "This is server-side error and "
                                     "should not happen at all.\n"
                                     "Please contact administrator for help.")
-        with open(os.path.join(fpath, "_name"), "w") as f:
+        with open(os.path.join(fpath, "_title"), "w") as f:
             f.write(title)
     else:
         version = secrets.token_hex(4) if _type in ["N", "F"] else None
@@ -147,6 +135,7 @@ def upload_note(note_path):
         elif _type == "F":
             preview = None
         data = {
+            "id": id,
             "title": title,
             "type": _type,
             "preview": preview,

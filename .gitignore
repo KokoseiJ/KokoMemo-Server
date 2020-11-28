@@ -184,3 +184,4 @@ memoweb.ini
 data.db
 notes
 메모앱
+migrations/*

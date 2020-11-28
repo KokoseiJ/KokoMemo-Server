@@ -3,16 +3,19 @@
 from flask import request
 from flask import Blueprint
 
+import os
 import time
 import bcrypt
 from math import floor
 
 from app import db
 from app.module.hash import sha256
+from app.module.b64 import b64encode, b64decode
 from app.module.jwt import jwt_encode, jwt_decode
 from app.module.util import return_data, check_login
 
 from models import User
+from config import PATH
 
 
 bp = Blueprint(
@@ -54,7 +57,7 @@ def register():
         "iat": issued,
         "exp": expire,
         "username": username,
-        "password": hashed_pw,
+        "password": b64encode(hashed_pw).decode(),
         "email": email,
         "nickname": nickname
     }
@@ -76,21 +79,40 @@ def verify_register():
     payload = jwt_decode(token)
     if not payload:
         return return_data(403, "JWT signature mismatch.")
-    username = payload("username", None)
-    password = payload("password", None)
-    email = payload("email", None)
-    nickname = payload("nickname", None)
+    username = payload.get("username", None)
+    password = payload.get("password", None)
+    email = payload.get("email", None)
+    nickname = payload.get("nickname", None)
 
     if None in [username, password, email, nickname]:
         return return_data(400, "Invalid token format.")
 
     user = User(
         username=username,
-        password=password,
+        password=b64decode(password),
         email=email,
         nickname=nickname
     )
     db.session.add(user)
+    db.session.flush()
+
+    try:
+        user_path = os.path.join(PATH, "notes", str(user.id))
+        os.mkdir(user_path)
+    except FileExistsError:
+        if os.path.isfile(user_path):
+            return return_data(500, "Failed to create a user folder.\n"
+                                    "This is server-side error and "
+                                    "should not happen at all.\n"
+                                    "Please contact administartor for help.")
+    except PermissionError:
+        return return_data(500, "Failed to create a user folder.\n"
+                                "This is server-side error and "
+                                "should not happen at all.\n"
+                                "Please contact administartor for help.")
+    with open(os.path.join(user_path, "_id_list"), "a") as f:
+        f.write("")
+
     db.session.commit()
 
     return return_data(201, "Successfully registered!")
@@ -113,7 +135,7 @@ def get_token():
     }
     jwt = jwt_encode(payload)
 
-    user.recent_token_issued_time = issued()
+    user.recent_token_issued_time = issued
     db.session.commit()
 
     return return_data(201, "Token issued successfully.", {"token": jwt})

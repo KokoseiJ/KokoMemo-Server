@@ -70,7 +70,7 @@ def token_to_user(token):
     if not payload:
         return False, "Token signature mismatch."
 
-    if payload.get("exp") != retrived:
+    if payload.get("exp") <= retrived:
         return False, "Token is expired."
 
     user = User.query.filter_by(id=payload.get("userid")).first()

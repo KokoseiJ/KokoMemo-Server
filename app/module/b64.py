@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import base64
-import binascii.Error
+import binascii
 
 
 def b64encode(data, urlsafe=True):
