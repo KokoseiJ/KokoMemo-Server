@@ -15,21 +15,27 @@ class MemoClient:
         self.token = None
 
     def request_register(self, email, nickname):
-        r = requests.post(f"{self.url}/user/register", headers={
-            "Authorization": get_basic_auth(self.id, self.pw)},
-            data={"email": email, "nickname": nickname})
+        r = requests.post(
+            f"{self.url}/user/register",
+            headers={"Authorization": get_basic_auth(self.id, self.pw)},
+            data={"email": email, "nickname": nickname}
+        )
         data = r.json()['meta']
         print(data['code'], data['message'])
 
     def verify_register(self, jwt):
-        r = requests.post(f"{self.url}/user/verify",
-                          headers={"Authorization": f"Bearer {jwt}"})
+        r = requests.post(
+            f"{self.url}/user/verify",
+            headers={"Authorization": f"Bearer {jwt}"}
+        )
         data = r.json()['meta']
         print(data['code'], data['message'])
 
     def get_token(self):
-        r = requests.get(f"{self.url}/user/token", headers={
-            "Authorization": get_basic_auth(self.id, self.pw)})
+        r = requests.get(
+            f"{self.url}/user/token",
+            headers={"Authorization": get_basic_auth(self.id, self.pw)}
+        )
         data = r.json()
         message = data['meta']['message']
         if r.status_code != 201:
@@ -42,37 +48,75 @@ class MemoClient:
         self.token = self.get_token()
 
     def get_list(self):
-        return requests.get(f"{self.url}/note/list", headers={
-            "Authorization": f"Bearer {self.token}"}).json()['data']
+        return requests.get(
+            f"{self.url}/note/list",
+            headers={"Authorization": f"Bearer {self.token}"}
+        ).json()['data']
 
     def get_note(self, *path):
-        r = requests.get(f"{self.url}/note/{'/'.join(path)}", headers={
-            "Authorization": f"Bearer {self.token}"})
+        r = requests.get(
+            f"{self.url}/note/{'/'.join(path)}",
+            headers={"Authorization": f"Bearer {self.token}"}
+        )
         data = r.json()
         print(data['meta']['code'], data['meta']['message'])
         return data['data']
 
     def get_file(self, *path):
-        r = requests.get(f"{self.url}/note/{'/'.join(path)}", headers={
-            "Authorization": f"Bearer {self.token}"})
+        r = requests.get(
+            f"{self.url}/note/{'/'.join(path)}",
+            headers={"Authorization": f"Bearer {self.token}"}
+        )
         print(r.headers.get("X-note-id"), r.headers.get("X-note-title"),
               r.headers.get("X-note-version"))
         return r.content
 
-    def upload_note(self, title, type, content, path="", mimetype=None):
-        r = requests.post(f"{self.url}/note/{path}", headers={
-            "Authorization": f"Bearer {self.token}"}, data={
-            "title": title, "type": type, "content": content,
-            "mimetype": mimetype})
+    def upload_note(self, title, type, content, path=""):
+        r = requests.post(
+            f"{self.url}/note/{path}",
+            headers={"Authorization": f"Bearer {self.token}"},
+            data={"title": title, "type": type, "content": content}
+        )
         data = r.json()['meta']
         print(data['code'], data['message'])
         return r
 
     def upload_file(self, title, file, path="", mimetype=None, type="F"):
-        r = requests.post(f"{self.url}/note/{path}", headers={
-            "Authorization": f"Bearer {self.token}"}, data={
-            "title": title, "type": type, "mimetype": mimetype},
-            files={"file": ("filename", file)})
+        r = requests.post(
+            f"{self.url}/note/{path}",
+            headers={"Authorization": f"Bearer {self.token}"},
+            data={"title": title, "type": type, "mimetype": mimetype},
+            files={"file": ("filename", file)}
+        )
+        data = r.json()['meta']
+        print(data['code'], data['message'])
+        return r
+
+    def edit_note(self, path, version, title=None, content=None):
+        r = requests.put(
+            f"{self.url}/note/{path}",
+            headers={"Authorization": f"Bearer {self.token}"},
+            data={
+                "title": title,
+                "content": content,
+                "version": version
+            }
+        )
+        data = r.json()['meta']
+        print(data['code'], data['message'])
+        return r
+
+    def edit_file(self, path, version, title, file, mimetype=None):
+        r = requests.put(
+            f"{self.url}/note/{path}",
+            headers={"Authorization": f"Bearer {self.token}"},
+            data={
+                "title": title,
+                "mimetype": mimetype,
+                "version": version
+            },
+            files={"file": ("filename", file)}
+        )
         data = r.json()['meta']
         print(data['code'], data['message'])
         return r

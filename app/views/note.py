@@ -7,14 +7,25 @@ import io
 import os
 import re
 import json
-import time
 import secrets
 
-from app import db
 from app.module.b64 import check_b64, b64encode, b64decode
 from app.module.util import return_data, token_to_user
 
 from config import PATH
+
+
+def get_noteobj(id, title, type, mimetype=None, preview=None, content=None,
+                version=None):
+    return {
+        "id": id,
+        "title": title,
+        "type": type,
+        "mimetype": mimetype,
+        "preview": preview,
+        "content": content,
+        "version": version
+    }
 
 
 def get_list(path):
@@ -40,16 +51,16 @@ def get_list(path):
         else:
             with open(os.path.join(file.path, "_title")) as f:
                 title = f.read()
-            filelist.append({
-                "id": file.name,
-                "title": title,
-                "type": "D",
-                "mimetype": None,
-                "preview": None,
-                "content": get_list(file.path),
-                "version": None
-            })
+            filelist.append(
+                get_noteobj(file.name, title, "D", content=get_list(file.path))
+            )
     return filelist
+
+
+def get_preview(content):
+    body_strip = re.sub("\\s", " ", content)
+    return body_strip if len(body_strip) <= 50 \
+        else body_strip[:47] + "..."
 
 
 bp = Blueprint(
@@ -91,14 +102,20 @@ def upload_note(note_path):
         if data is None:
             return return_data(400, "Data not provided.")
 
+    note_abspath = os.path.join(PATH, "notes", str(user.id), note_path)
+
     title = data.get("title")
     _type = data.get("type")
     content = data.get("content")
+    mimetype = data.get("mimetype")
     file = request.files.get("file")
 
     id_list_path = os.path.join(PATH, "notes", str(user.id), "_id_list")
     with open(id_list_path) as f:
         id_list = f.read().split(",")
+
+    if not os.path.exists(note_abspath):
+        return return_data(404, "Folder doesn't exist.")
     if False in [check_b64(path) and path in id_list
                  for path in note_path.split("/")]:
         return return_data(400, "Path is invalid.")
@@ -107,6 +124,8 @@ def upload_note(note_path):
         return return_data(400, "Title not provided.")
     if len(title) >= 50:
         return return_data(400, "Title is too long.")
+    if not isinstance(title, str):
+        return return_data(400, "Title is not string.")
     if _type not in ["N", "F", "D"]:
         return return_data(400, "Wrong type specified.")
     if _type == "N" and content is None:
@@ -114,16 +133,17 @@ def upload_note(note_path):
     if _type == "F":
         if file is None:
             return return_data(400, "File content not provided.")
+        if mimetype is not None and not isinstance(mimetype, str):
+            return return_data(400, "Mimetype is not a string.")
 
     while True:
         _id = _type + secrets.token_urlsafe(8)
         if _id not in id_list:
             break
 
-    user_path = os.path.join(PATH, "notes", str(user.id))
     if _type == "D":
         try:
-            fpath = os.path.join(user_path, note_path, _id)
+            fpath = os.path.join(note_abspath, _id)
             os.mkdir(fpath)
         except (FileExistsError, PermissionError):
             return return_data(500, "Failed to create a folder.\n"
@@ -133,24 +153,14 @@ def upload_note(note_path):
         with open(os.path.join(fpath, "_title"), "w") as f:
             f.write(title)
 
-        data = {
-            "id": _id,
-            "title": title,
-            "type": "D",
-            "mimetype": None,
-            "preview": None,
-            "content": None,
-            "version": None
-        }
+        data = get_noteobj(_id, title, "D")
     else:
-        version = secrets.token_hex(4) if _type in ["N", "F"] else None
+        version = secrets.token_hex(4)
         if _type == "N":
             mimetype = None
-            body_strip = re.sub("\\s", " ", content)
-            preview = body_strip if len(body_strip) <= 50 \
-                else body_strip[:47] + "..."
+            preview = get_preview(content)
+
         elif _type == "F":
-            mimetype = data.get("mimetype")
             if mimetype is None:
                 mimetype = "application/octet-stream"
             preview = None
@@ -158,17 +168,12 @@ def upload_note(note_path):
             file.save(f)
             content = b64encode(f.getvalue()).decode()
 
-        data = {
-            "id": _id,
-            "title": title,
-            "type": _type,
-            "mimetype": mimetype,
-            "preview": preview,
-            "content": content,
-            "version": version
-        }
-        with open(os.path.join(user_path, note_path, _id), "w") as f:
+        data = get_noteobj(
+            _id, title, _type, mimetype, preview, content, version)
+        with open(os.path.join(note_abspath, _id), "w") as f:
             f.write(json.dumps(data))
+
+        data['content'] = None
 
     with open(id_list_path, "a") as f:
         f.write(_id + ",")
@@ -198,6 +203,7 @@ def get_note(note_path):
     if False in [check_b64(path) and path in id_list
                  for path in note_path.split("/")]:
         return return_data(400, "Path is invalid.")
+
     if note_id[0] == "D":
         return return_data(400, "Directory cannot be retrieved with this "
                                 "endpoint, please use /note/list instead.")
@@ -221,8 +227,8 @@ def get_note(note_path):
         return response, 200
 
 
-@bp.route("/<string:id>", methods=['PUT'])
-def edit_note(id):
+@bp.route('/<path:note_path>', methods=['PUT'])
+def edit_note(note_path):
     auth = request.headers.get("Authorization", str())
     if not auth.strip().startswith("Bearer "):
         return return_data(401, "Authorization not provided.")
@@ -231,44 +237,92 @@ def edit_note(id):
     if not is_valid:
         return return_data(403, user)
 
-    if id not in [note.id for note in user.notes]:
-        return return_data(404, "Note with given id doesn't exist.")
+    data = request.get_json()
+    if data is None:
+        data = request.form
+        if data is None:
+            return return_data(400, "Data not provided.")
 
-    title = request.form.get("title", "")
-    body = request.form.get("body", "")
-    uploaded_version = request.form.get("version", "")
+    note_id = note_path.rsplit("/", 1)[-1]
+    note_abspath = os.path.join(PATH, "notes", str(user.id), note_path)
 
-    if not title:
-        return return_data(400, "Title not provided.")
-    if len(title) >= 50:
-        return return_data(400, "Title is too long.")
-    if not uploaded_version:
-        return return_data(400, "version not provided.")
+    title = data.get("title")
+    content = data.get("content")
+    version = data.get("version")
+    mimetype = data.get("mimetype")
+    file = request.files.get("file")
 
-    body_strip = re.sub("\\s", " ", body)
+    id_list_path = os.path.join(PATH, "notes", str(user.id), "_id_list")
+    with open(id_list_path) as f:
+        id_list = f.read().split(",")
 
-    preview = body_strip if len(body_strip) <= 50 \
-        else body_strip[:47] + "..."
+    if note_id not in id_list or not os.path.exists(note_abspath):
+        return return_data(404, "Note doesn't exist.")
+    if False in [check_b64(path) and path in id_list
+                 for path in note_path.split("/")]:
+        return return_data(400, "Path is invalid.")
 
-    note = Note.query.filter_by(user_id=user.id, id=id).first()
+    if title is not None:
+        if len(title) >= 50:
+            return return_data(400, "Title is too long.")
+        if not isinstance(title, str):
+            return return_data(400, "Title is not a string.")
+    if note_id[0] in ["F", "N"]:
+        if version is None:
+            return return_data(400, "Version not provided.")
+        elif not isinstance(version, str):
+            return return_data(400, "Version is not a string.")
+        if len(version) != 8:
+            return return_data(400, "Version has a wrong format.")
+    if note_id[0] == "F" and mimetype is not None and\
+            not isinstance(mimetype, str):
+        return return_data(400, "Mimetype is not a string.")
 
-    version = secrets.token_hex(4)
-    while uploaded_version == version or note.version == version:
-        version = secrets.token_hex(4)
-
-    if uploaded_version == note.version:
-        with open(os.path.join(PATH, "notes", str(user.id), id), "w") as f:
-            f.write(body)
+    if note_id[0] == "D":
+        with open(os.path.join(note_abspath, "_title")) as f:
+            orig_title = f.read()
+        if title is not None and orig_title != title:
+            with open(os.path.join(note_abspath, "_title"), "w") as f:
+                f.write(title)
+            return_str = "Edited successfully!"
+        else:
+            return_str = "Not modified."
+        data = get_noteobj(note_id, title if title else orig_title, "D")
     else:
-        with open(os.path.join(PATH, "notes", str(user.id), id), "a") as f:
-            f.write("\n--------On this computer--------\n")
-            f.write(body)
+        new_version = secrets.token_hex(4)
+        modified = False
+        with open(note_abspath) as f:
+            data = json.load(f)
+        if title is not None and data['title'] != title:
+            data['title'] = title
+            modified = True
+        if note_id[0] == "N" and content is not None\
+                and content != data['content']:
+            if data['version'] == version:
+                data['content'] = content
+            else:
+                data['content'] = content + \
+                    f"\n\n-----Old version({data['version']})-----" + \
+                    data['content']
+            data['preview'] = get_preview(data['content'])
+            modified = True
+        elif note_id[0] == "F":
+            if file is not None:
+                f = io.BytesIO()
+                file.save(f)
+                content = b64encode(f.getvalue()).decode()
+                if content != data['content']:
+                    data['content'] = content
+                    modified = True
+            if mimetype is not None and data['mimetype'] != mimetype:
+                data['mimetype'] = mimetype
+                modified = True
+        if modified:
+            data['version'] = new_version
+            with open(note_abspath, "w") as f:
+                json.dump(data, f)
+            return_str = "Edited successfully!"
+        else:
+            return_str = "Not modified."
 
-    note.title = title
-    note.preview = preview
-    note.version = version
-    note.edited_time = time.time()
-
-    db.session.commit()
-
-    return return_data(201, "Successfully uploaded!")
+    return return_data(200, return_str, data)
