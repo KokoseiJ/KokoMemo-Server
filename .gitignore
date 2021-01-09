@@ -183,5 +183,7 @@ memoweb.ini
 
 data.db
 notes
+files
 메모앱
+메모앱_재작성
 migrations/*

@@ -49,27 +49,32 @@ class MemoClient:
 
     def get_list(self):
         return requests.get(
-            f"{self.url}/note/list",
+            f"{self.url}/note",
             headers={"Authorization": f"Bearer {self.token}"}
         ).json()['data']
 
-    def get_note(self, *path):
+    def get_note(self, id):
         r = requests.get(
-            f"{self.url}/note/{'/'.join(path)}",
+            f"{self.url}/note/{id}",
             headers={"Authorization": f"Bearer {self.token}"}
         )
         data = r.json()
         print(data['meta']['code'], data['meta']['message'])
         return data['data']
 
-    def get_file(self, *path):
+    def get_file(self, id):
         r = requests.get(
-            f"{self.url}/note/{'/'.join(path)}",
+            f"{self.url}/note/{id}",
             headers={"Authorization": f"Bearer {self.token}"}
         )
-        print(r.headers.get("X-note-id"), r.headers.get("X-note-title"),
-              r.headers.get("X-note-version"))
-        return r.content
+        data = r.json()
+        print(data['meta']['code'], data['meta']['message'])
+
+        r = requests.get(
+            f"{self.url}/note/{id}/file",
+            headers={"Authorization": f"Bearer {self.token}"}
+        )
+        return data, r.content
 
     def upload_note(self, title, type, content, path=""):
         r = requests.post(
@@ -93,7 +98,7 @@ class MemoClient:
         return r
 
     def edit_note(self, path, version, title=None, content=None):
-        r = requests.put(
+        r = requests.patch(
             f"{self.url}/note/{path}",
             headers={"Authorization": f"Bearer {self.token}"},
             data={

@@ -6,6 +6,8 @@ import base64
 
 PATH = os.path.dirname(__file__)
 
+FILE_PATH = os.path.join(PATH, "files")
+
 # SQL Server info
 SQLALCHEMY_DATABASE_URI = f"sqlite:///{PATH}/data.db"
 SQLALCHEMY_TRACK_MODIFICATIONS = False

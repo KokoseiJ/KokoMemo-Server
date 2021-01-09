@@ -3,7 +3,6 @@
 from flask import request
 from flask import Blueprint
 
-import os
 import time
 import bcrypt
 from math import floor
@@ -15,7 +14,6 @@ from app.module.jwt import jwt_encode, jwt_decode
 from app.module.util import return_data, check_login
 
 from models import User
-from config import PATH
 
 
 bp = Blueprint(
@@ -95,23 +93,6 @@ def verify_register():
     )
     db.session.add(user)
     db.session.flush()
-
-    try:
-        user_path = os.path.join(PATH, "notes", str(user.id))
-        os.mkdir(user_path)
-    except FileExistsError:
-        if os.path.isfile(user_path):
-            return return_data(500, "Failed to create a user folder.\n"
-                                    "This is server-side error and "
-                                    "should not happen at all.\n"
-                                    "Please contact administartor for help.")
-    except PermissionError:
-        return return_data(500, "Failed to create a user folder.\n"
-                                "This is server-side error and "
-                                "should not happen at all.\n"
-                                "Please contact administartor for help.")
-    with open(os.path.join(user_path, "_id_list"), "a") as f:
-        f.write("")
 
     db.session.commit()
 

@@ -18,6 +18,13 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
+    try:
+        from os import mkdir
+        from config import FILE_PATH
+        mkdir(FILE_PATH)
+    except FileExistsError:
+        pass
+
     import models
     from app import views
 
